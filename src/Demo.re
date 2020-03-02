@@ -523,30 +523,8 @@ let stringifyCharMod : cmod => string = cm => {
   strstat ++ strval ++ strpips ++ strshape ++ strset ++ strlvl ++ strtier ++ strchar ++ strmoduid ++ strsstat1 ++ strsvalue1 ++ strslevel1 ++ strsstat2 ++ strsvalue2 ++ strslevel2 ++ strsstat3 ++ strsvalue3 ++ strslevel3 ++ strsstat4 ++ strsvalue4 ++ strslevel4
 };    
 /* ----------------------------------------------------------------------- */
-/* let encodeMods = (modlist : list(cmod)) : Js.Json.t => */
-/*   Aeson.Encode.object_ ([ */
-/*   ("mods", modlist |> Aeson.Encode.list(encodeCharMod)) */
-/*   ]); */
-
-/* let decodeMods = json : list(cmod) => json |> Aeson.Decode.field ("mods", Aeson.Decode.list(decodeCharMod)); */
 
 let jsonFromFile = Js.Json.parseExn(Node.Fs.readFileAsUtf8Sync ("test.json"));
-
-/* let testJson = {|{"mods":[{"primaryBonusType":"Offense %","primaryBonusValue":"+3.63","secondaryType_1":"Health","secondaryValue_1":"+296","secondaryRoll_1":1,"secondaryType_2":"Defense","secondaryValue_2":"+8","secondaryRoll_2":1,"secondaryType_3":"Health %","secondaryValue_3":"+0.83","secondaryRoll_3":1,"secondaryType_4":"Protection %","secondaryValue_4":"+1.16","secondaryRoll_4":1,"mod_uid":"Bisg176CqrTNGQ3I845168","slot":"square","set":"critdamage","level":9,"pips":5,"characterID":null,"tier":2},{"primaryBonusType":"Offense %","primaryBonusValue":"+2.5","secondaryType_1":"Defense","secondaryValue_1":"+5","secondaryRoll_1":1,"secondaryType_2":"Offense","secondaryValue_2":"+33","secondaryRoll_2":1,"secondaryType_3":"","secondaryValue_3":"","secondaryRoll_3":"","secondaryType_4":"","secondaryValue_4":"","secondaryRoll_4":"","mod_uid":"Vh4aid35x7kCIo1m5Y5168","slot":"square","set":"critdamage","level":6,"pips":5,"characterID":null,"tier":1},{"primaryBonusType":"Offense %","primaryBonusValue":"+2.5","secondaryType_1":"Potency %","secondaryValue_1":"+1.77","secondaryRoll_1":1,"secondaryType_2":"Tenacity %","secondaryValue_2":"+1.64","secondaryRoll_2":1,"secondaryType_3":"","secondaryValue_3":"","secondaryRoll_3":"","secondaryType_4":"","secondaryValue_4":"","secondaryRoll_4":"","mod_uid":"eDo852wRUhufzaz36H5168","slot":"square","set":"critdamage","level":6,"pips":5,"characterID":null,"tier":1}]}|} */
-/* let testPrim : cmod = { primstat: PrimaryDefense, primvalue: PrimaryFloat (2.5389), primpips: Pip2, primshape: Square, primset: CriticalChanceSet, primlevel: PrimaryLevel (12), primtier: Blue, primchar: None, primmodid: None, secondarystat1: Some(Defense), secondaryvalue1: Some(SecondaryFloat (1.2)), secondarylevel1: (Some (SecondaryLevel2)), secondarystat2: None, secondaryvalue2: None, secondarylevel2: None, secondarystat3: None, secondaryvalue3: None, secondarylevel3: None, secondarystat4: None, secondaryvalue4: None, secondarylevel4: None }; */
-/* let testValue = encodePrimaryValue (PrimarySpeed,PrimaryFloat (2.45)); */
-/* let jsonResultToString : Belt.Result.t(primarystat,string) => string = t => */
-/*   switch (t) { */
-/*     | Ok(pstat) => primaryStatToString (pstat) */
-/*     | Error(msg) => msg */
-/*   }; */
-
-/* let encPrim = encodeCharMod (testPrim); */
-/* let decPrim = decodeCharMod (encPrim); */
-/* let strPrim = stringifyCharMod (decPrim); */
-
-/* let decodedmods = decodeMods (Js.Json.parseExn(testJson)); */
-/* let encodedmods = Js.Json.stringify (encodeMods (decodedmods)); */
 
 let arrayOfOptionsToOptionArray : array(option ('a)) => option(array('a)) = arrayOfOptions => {
   let emptyArray : array('a) = [||];
@@ -579,20 +557,19 @@ let addModListToMap : (Js.Dict.t(cmod),cmod) => Js.Dict.t(cmod) = (cmoddict,cMod
       };  
   };
 
-let getModsMapFromProfile : (Js.Dict.t(Js.Json.t)) => Js.Dict.t(cmod) = jsondict => {
-  switch (Js.Dict.get(jsondict, "mods")) {
-  | None => Js.Dict.empty();
-  | Some (jsonModslist) => {
-    let modlist = jsonModslist |> Aeson.Decode.list(decodeCharMod);
-    List.fold_left (addModListToMap,Js.Dict.empty(),modlist);
-    };
+let getMainDict : Js.Json.t => option(Js.Dict.t(Js.Json.t)) = mainjson =>
+  Js.Json.decodeObject(mainjson);
+
+let getProfiles : Js.Dict.t(Js.Json.t) => option(array(Js.Json.t)) = maindict =>
+  switch (Js.Dict.get(maindict,"profiles")) {
+  | None => None
+  | Some (profilesArrayAsJson : Js.Json.t) => Js.Json.decodeArray (profilesArrayAsJson)
   };
-};
 
 let getMainProfile : Js.Json.t => option(Js.Dict.t(Js.Json.t)) = mainjson =>
   switch (Js.Json.decodeObject(mainjson)) {
   | None => None
-  | Some (mainObjectDict : Js.Dict.t(Js.Json.t)) => 
+  | Some (mainObjectDict : Js.Dict.t(Js.Json.t)) =>
     switch (Js.Dict.get(mainObjectDict,"profiles")) {
     | None => None
     | Some (profilesArrayAsJson : Js.Json.t) =>
@@ -606,6 +583,16 @@ let getMainProfile : Js.Json.t => option(Js.Dict.t(Js.Json.t)) = mainjson =>
     };
   };
 
+let getModsMapFromProfile : (Js.Dict.t(Js.Json.t)) => Js.Dict.t(cmod) = jsondict => {
+  switch (Js.Dict.get(jsondict, "mods")) {
+  | None => Js.Dict.empty();
+  | Some (jsonModslist) => {
+    let modlist = jsonModslist |> Aeson.Decode.list(decodeCharMod);
+    List.fold_left (addModListToMap,Js.Dict.empty(),modlist);
+    };
+  };
+};
+
 let getModsFromJson : Js.Json.t => Js.Dict.t(cmod) = mainJson =>
   switch (getMainProfile (mainJson)) {
   | None => Js.Dict.empty();
@@ -618,33 +605,33 @@ let updateModsInMainProfile : (Js.Dict.t(Js.Json.t),Js.Dict.t(cmod)) => Js.Dict.
   mainProfileDict;
   };
                                                                
-let getAndUpdateMods : Js.Json.t => option(Js.Json.t) = mainjson => {
-  let obj = {
-    switch (Js.Json.decodeObject(mainjson)) {
-    | None => None
-    | Some (mainObjectDict : Js.Dict.t(Js.Json.t)) =>
-      switch (Js.Dict.get(mainObjectDict,"profiles")) {
-      | None => None
-      | Some (profilesValueAsJsont : Js.Json.t) =>
-        switch (Js.Json.decodeArray (profilesValueAsJsont)) {
-        | None => None
-        | Some (profileValueAsArrayJsont : array(Js.Json.t)) =>
-          let maybeArrayOfDict : option(array(Js.Dict.t(Js.Json.t))) = arrayOfOptionsToOptionArray(decodeArrayOfObects (profileValueAsArrayJsont));         
-          switch (maybeArrayOfDict) {
-          | None => None
-          | Some (arrayOfDictOfObjects : array(Js.Dict.t(Js.Json.t))) => {
-              let updatedProfileObjectArray = Array.map(updateModsObj,arrayOfDictOfObjects)
-              let updatedProfileValue = Aeson.Encode.array(updatedProfileObjectArray)
-              Js.Dict.set(mainObjectDict,"profiles",updatedProfileValue);
-              Some (mainObjectDict);
-              };
-          };
-        };
-      };
-    };
-  };
-  Belt.Option.map(obj, Js.Json.object_);
-};
+/* let getAndUpdateMods : Js.Json.t => option(Js.Json.t) = mainjson => { */
+/*   let obj = { */
+/*     switch (Js.Json.decodeObject(mainjson)) { */
+/*     | None => None */
+/*     | Some (mainObjectDict : Js.Dict.t(Js.Json.t)) => */
+/*       switch (Js.Dict.get(mainObjectDict,"profiles")) { */
+/*       | None => None */
+/*       | Some (profilesValueAsJsont : Js.Json.t) => */
+/*         switch (Js.Json.decodeArray (profilesValueAsJsont)) { */
+/*         | None => None */
+/*         | Some (profileValueAsArrayJsont : array(Js.Json.t)) => */
+/*           let maybeArrayOfDict : option(array(Js.Dict.t(Js.Json.t))) = arrayOfOptionsToOptionArray(decodeArrayOfObects (profileValueAsArrayJsont));          */
+/*           switch (maybeArrayOfDict) { */
+/*           | None => None */
+/*           | Some (arrayOfDictOfObjects : array(Js.Dict.t(Js.Json.t))) => { */
+/*               let updatedProfileObjectArray = Array.map(updateModsObj,arrayOfDictOfObjects) */
+/*               let updatedProfileValue = Aeson.Encode.array(updatedProfileObjectArray) */
+/*               Js.Dict.set(mainObjectDict,"profiles",updatedProfileValue); */
+/*               Some (mainObjectDict); */
+/*               }; */
+/*           }; */
+/*         }; */
+/*       }; */
+/*     }; */
+/*   }; */
+/*   Belt.Option.map(obj, Js.Json.object_); */
+/* }; */
 
 let stringifyOptionJson : option(Js.Json.t) => string = maybejson =>
   switch (maybejson) {
@@ -655,7 +642,7 @@ let stringifyOptionJson : option(Js.Json.t) => string = maybejson =>
 /* let testJson = List.map (stringifyCharMod,decodedmods); */
 /* Js.log(testJson); */
 /* let testDecodeJson = decodePrimary(jsonFromFile); */
-Js.log (stringifyOptionJson (getAndUpdateMods(jsonFromFile)));
+/* Js.log (stringifyOptionJson (getAndUpdateMods(jsonFromFile))); */
 /* Js.log (jsonFromFile); */
 /* Js.log (stringifyOptionJson (updateObj)); */
 /* Js.log (strPrim); */

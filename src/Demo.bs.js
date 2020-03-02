@@ -11,7 +11,6 @@ var Js_dict = require("bs-platform/lib/js/js_dict.js");
 var Js_json = require("bs-platform/lib/js/js_json.js");
 var Caml_array = require("bs-platform/lib/js/caml_array.js");
 var Caml_int32 = require("bs-platform/lib/js/caml_int32.js");
-var Belt_Option = require("bs-platform/lib/js/belt_Option.js");
 var Caml_option = require("bs-platform/lib/js/caml_option.js");
 var Aeson_decode = require("bs-aeson/src/Aeson_decode.js");
 var Aeson_encode = require("bs-aeson/src/Aeson_encode.js");
@@ -968,7 +967,7 @@ function stringifyCharMod(cm) {
   return strstat + (strval + (strpips + (strshape + (strset + (strlvl + (strtier + (strchar + (strmoduid + (strsstat1 + (strsvalue1 + (strslevel1 + (strsstat2 + (strsvalue2 + (strslevel2 + (strsstat3 + (strsvalue3 + (strslevel3 + (strsstat4 + (strsvalue4 + strslevel4)))))))))))))))))));
 }
 
-var readjson = JSON.parse(Fs.readFileSync("test.json", "utf8"));
+var jsonFromFile = JSON.parse(Fs.readFileSync("test.json", "utf8"));
 
 function arrayOfOptionsToOptionArray(arrayOfOptions) {
   var emptyArray = [];
@@ -1002,14 +1001,14 @@ function addModListToMap(cmoddict, cMod) {
   }
 }
 
-function getModsMapFromProfile(jsondict) {
-  var match = Js_dict.get(jsondict, "mods");
+var getMainDict = Js_json.decodeObject;
+
+function getProfiles(maindict) {
+  var match = Js_dict.get(maindict, "profiles");
   if (match !== undefined) {
-    var modlist = Aeson_decode.list(decodeCharMod, Caml_option.valFromOption(match));
-    return List.fold_left(addModListToMap, { }, modlist);
-  } else {
-    return { };
+    return Js_json.decodeArray(Caml_option.valFromOption(match));
   }
+  
 }
 
 function getMainProfile(mainjson) {
@@ -1030,6 +1029,16 @@ function getMainProfile(mainjson) {
   
 }
 
+function getModsMapFromProfile(jsondict) {
+  var match = Js_dict.get(jsondict, "mods");
+  if (match !== undefined) {
+    var modlist = Aeson_decode.list(decodeCharMod, Caml_option.valFromOption(match));
+    return List.fold_left(addModListToMap, { }, modlist);
+  } else {
+    return { };
+  }
+}
+
 function getModsFromJson(mainJson) {
   var match = getMainProfile(mainJson);
   if (match !== undefined) {
@@ -1046,37 +1055,6 @@ function updateModsInMainProfile(mainProfileDict, cmodDict) {
   return mainProfileDict;
 }
 
-function getAndUpdateMods(mainjson) {
-  var match = Js_json.decodeObject(mainjson);
-  var obj;
-  if (match !== undefined) {
-    var mainObjectDict = Caml_option.valFromOption(match);
-    var match$1 = Js_dict.get(mainObjectDict, "profiles");
-    if (match$1 !== undefined) {
-      var match$2 = Js_json.decodeArray(Caml_option.valFromOption(match$1));
-      if (match$2 !== undefined) {
-        var maybeArrayOfDict = arrayOfOptionsToOptionArray($$Array.map(Js_json.decodeObject, match$2));
-        if (maybeArrayOfDict !== undefined) {
-          var updatedProfileObjectArray = $$Array.map(updateModsObj, maybeArrayOfDict);
-          mainObjectDict["profiles"] = updatedProfileObjectArray;
-          obj = Caml_option.some(mainObjectDict);
-        } else {
-          obj = undefined;
-        }
-      } else {
-        obj = undefined;
-      }
-    } else {
-      obj = undefined;
-    }
-  } else {
-    obj = undefined;
-  }
-  return Belt_Option.map(obj, (function (prim) {
-                return prim;
-              }));
-}
-
 function stringifyOptionJson(maybejson) {
   if (maybejson !== undefined) {
     return JSON.stringify(Caml_option.valFromOption(maybejson));
@@ -1084,8 +1062,6 @@ function stringifyOptionJson(maybejson) {
     return "None";
   }
 }
-
-console.log(stringifyOptionJson(getAndUpdateMods(readjson)));
 
 var test = makeprimaryvalue(/* PrimarySpeed */9, /* PrimaryLevel */[15], /* Pip5 */4);
 
@@ -1133,16 +1109,17 @@ exports.stringifySecondaryLevel = stringifySecondaryLevel;
 exports.encodeCharMod = encodeCharMod;
 exports.decodeCharMod = decodeCharMod;
 exports.stringifyCharMod = stringifyCharMod;
-exports.readjson = readjson;
+exports.jsonFromFile = jsonFromFile;
 exports.arrayOfOptionsToOptionArray = arrayOfOptionsToOptionArray;
 exports.updateModsObj = updateModsObj;
 exports.decodeArrayOfObects = decodeArrayOfObects;
 exports.addModListToMap = addModListToMap;
-exports.getModsMapFromProfile = getModsMapFromProfile;
+exports.getMainDict = getMainDict;
+exports.getProfiles = getProfiles;
 exports.getMainProfile = getMainProfile;
+exports.getModsMapFromProfile = getModsMapFromProfile;
 exports.getModsFromJson = getModsFromJson;
 exports.updateModsInMainProfile = updateModsInMainProfile;
-exports.getAndUpdateMods = getAndUpdateMods;
 exports.stringifyOptionJson = stringifyOptionJson;
 exports.test = test;
 /* randomuid36 Not a pure module */
