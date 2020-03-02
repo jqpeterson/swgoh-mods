@@ -2,6 +2,7 @@
 'use strict';
 
 var Fs = require("fs");
+var List = require("bs-platform/lib/js/list.js");
 var Uuid = require("bs-guid/src/Uuid.js");
 var $$Array = require("bs-platform/lib/js/array.js");
 var Block = require("bs-platform/lib/js/block.js");
@@ -967,73 +968,10 @@ function stringifyCharMod(cm) {
   return strstat + (strval + (strpips + (strshape + (strset + (strlvl + (strtier + (strchar + (strmoduid + (strsstat1 + (strsvalue1 + (strslevel1 + (strsstat2 + (strsvalue2 + (strslevel2 + (strsstat3 + (strsvalue3 + (strslevel3 + (strsstat4 + (strsvalue4 + strslevel4)))))))))))))))))));
 }
 
-function encodeMods(modlist) {
-  return Aeson_encode.object_(/* :: */[
-              /* tuple */[
-                "mods",
-                Aeson_encode.list(encodeCharMod, modlist)
-              ],
-              /* [] */0
-            ]);
-}
-
-function decodeMods(json) {
-  return Aeson_decode.field("mods", (function (param) {
-                return Aeson_decode.list(decodeCharMod, param);
-              }), json);
-}
-
-var testJson = "{\"mods\":[{\"primaryBonusType\":\"Offense %\",\"primaryBonusValue\":\"+3.63\",\"secondaryType_1\":\"Health\",\"secondaryValue_1\":\"+296\",\"secondaryRoll_1\":1,\"secondaryType_2\":\"Defense\",\"secondaryValue_2\":\"+8\",\"secondaryRoll_2\":1,\"secondaryType_3\":\"Health %\",\"secondaryValue_3\":\"+0.83\",\"secondaryRoll_3\":1,\"secondaryType_4\":\"Protection %\",\"secondaryValue_4\":\"+1.16\",\"secondaryRoll_4\":1,\"mod_uid\":\"Bisg176CqrTNGQ3I845168\",\"slot\":\"square\",\"set\":\"critdamage\",\"level\":9,\"pips\":5,\"characterID\":null,\"tier\":2},{\"primaryBonusType\":\"Offense %\",\"primaryBonusValue\":\"+2.5\",\"secondaryType_1\":\"Defense\",\"secondaryValue_1\":\"+5\",\"secondaryRoll_1\":1,\"secondaryType_2\":\"Offense\",\"secondaryValue_2\":\"+33\",\"secondaryRoll_2\":1,\"secondaryType_3\":\"\",\"secondaryValue_3\":\"\",\"secondaryRoll_3\":\"\",\"secondaryType_4\":\"\",\"secondaryValue_4\":\"\",\"secondaryRoll_4\":\"\",\"mod_uid\":\"Vh4aid35x7kCIo1m5Y5168\",\"slot\":\"square\",\"set\":\"critdamage\",\"level\":6,\"pips\":5,\"characterID\":null,\"tier\":1},{\"primaryBonusType\":\"Offense %\",\"primaryBonusValue\":\"+2.5\",\"secondaryType_1\":\"Potency %\",\"secondaryValue_1\":\"+1.77\",\"secondaryRoll_1\":1,\"secondaryType_2\":\"Tenacity %\",\"secondaryValue_2\":\"+1.64\",\"secondaryRoll_2\":1,\"secondaryType_3\":\"\",\"secondaryValue_3\":\"\",\"secondaryRoll_3\":\"\",\"secondaryType_4\":\"\",\"secondaryValue_4\":\"\",\"secondaryRoll_4\":\"\",\"mod_uid\":\"eDo852wRUhufzaz36H5168\",\"slot\":\"square\",\"set\":\"critdamage\",\"level\":6,\"pips\":5,\"characterID\":null,\"tier\":1}]}";
-
 var readjson = JSON.parse(Fs.readFileSync("test.json", "utf8"));
 
-var testPrim = {
-  primstat: /* PrimaryDefense */4,
-  primvalue: /* PrimaryFloat */[2.5389],
-  secondarystat1: /* Defense */1,
-  secondaryvalue1: /* SecondaryFloat */[1.2],
-  secondarylevel1: /* SecondaryLevel2 */1,
-  secondarystat2: undefined,
-  secondaryvalue2: undefined,
-  secondarylevel2: undefined,
-  secondarystat3: undefined,
-  secondaryvalue3: undefined,
-  secondarylevel3: undefined,
-  secondarystat4: undefined,
-  secondaryvalue4: undefined,
-  secondarylevel4: undefined,
-  primpips: /* Pip2 */1,
-  primshape: /* Square */0,
-  primset: /* CriticalChanceSet */0,
-  primlevel: /* PrimaryLevel */[12],
-  primtier: /* Blue */2,
-  primchar: undefined,
-  primmodid: undefined
-};
-
-var testValue = encodePrimaryValue(/* PrimarySpeed */9, /* PrimaryFloat */[2.45]);
-
-function jsonResultToString(t) {
-  if (t.tag) {
-    return t[0];
-  } else {
-    return primaryStatToString(t[0]);
-  }
-}
-
-var encPrim = encodeCharMod(testPrim);
-
-var decPrim = decodeCharMod(encPrim);
-
-var strPrim = stringifyCharMod(decPrim);
-
-var decodedmods = decodeMods(JSON.parse(testJson));
-
-var encodedmods = JSON.stringify(encodeMods(decodedmods));
-
-var emptyArray = /* array */[];
-
 function arrayOfOptionsToOptionArray(arrayOfOptions) {
+  var emptyArray = [];
   var fcn = function (maybeArray, maybeElem) {
     if (maybeArray !== undefined && maybeElem !== undefined) {
       return $$Array.append(maybeArray, Caml_array.caml_make_vect(1, Caml_option.valFromOption(maybeElem)));
@@ -1043,12 +981,72 @@ function arrayOfOptionsToOptionArray(arrayOfOptions) {
   return $$Array.fold_left(fcn, emptyArray, arrayOfOptions);
 }
 
-function updateObj(profileObjectDict) {
+function updateModsObj(profileObjectDict) {
+  var emptyArray = [];
   profileObjectDict["mods"] = emptyArray;
   return profileObjectDict;
 }
 
-function getMods(mainjson) {
+function decodeArrayOfObects(arrayOfJson) {
+  return $$Array.map(Js_json.decodeObject, arrayOfJson);
+}
+
+function addModListToMap(cmoddict, cMod) {
+  var match = cMod.primmodid;
+  if (match !== undefined) {
+    cmoddict[match[0]] = cMod;
+    return cmoddict;
+  } else {
+    cmoddict[makeModUId] = cMod;
+    return cmoddict;
+  }
+}
+
+function getModsMapFromProfile(jsondict) {
+  var match = Js_dict.get(jsondict, "mods");
+  if (match !== undefined) {
+    var modlist = Aeson_decode.list(decodeCharMod, Caml_option.valFromOption(match));
+    return List.fold_left(addModListToMap, { }, modlist);
+  } else {
+    return { };
+  }
+}
+
+function getMainProfile(mainjson) {
+  var match = Js_json.decodeObject(mainjson);
+  if (match !== undefined) {
+    var match$1 = Js_dict.get(Caml_option.valFromOption(match), "profiles");
+    if (match$1 !== undefined) {
+      var match$2 = Js_json.decodeArray(Caml_option.valFromOption(match$1));
+      if (match$2 !== undefined) {
+        return Js_json.decodeObject(Caml_array.caml_array_get(match$2, 0));
+      } else {
+        return ;
+      }
+    } else {
+      return ;
+    }
+  }
+  
+}
+
+function getModsFromJson(mainJson) {
+  var match = getMainProfile(mainJson);
+  if (match !== undefined) {
+    return getModsMapFromProfile(Caml_option.valFromOption(match));
+  } else {
+    return { };
+  }
+}
+
+function updateModsInMainProfile(mainProfileDict, cmodDict) {
+  var arrayCmods = Js_dict.values(cmodDict);
+  var encodedCMods = $$Array.map(encodeCharMod, arrayCmods);
+  mainProfileDict["mods"] = encodedCMods;
+  return mainProfileDict;
+}
+
+function getAndUpdateMods(mainjson) {
   var match = Js_json.decodeObject(mainjson);
   var obj;
   if (match !== undefined) {
@@ -1057,10 +1055,9 @@ function getMods(mainjson) {
     if (match$1 !== undefined) {
       var match$2 = Js_json.decodeArray(Caml_option.valFromOption(match$1));
       if (match$2 !== undefined) {
-        var arrayOfMaybeDict = $$Array.map(Js_json.decodeObject, match$2);
-        var maybeArrayOfDict = arrayOfOptionsToOptionArray(arrayOfMaybeDict);
+        var maybeArrayOfDict = arrayOfOptionsToOptionArray($$Array.map(Js_json.decodeObject, match$2));
         if (maybeArrayOfDict !== undefined) {
-          var updatedProfileObjectArray = $$Array.map(updateObj, maybeArrayOfDict);
+          var updatedProfileObjectArray = $$Array.map(updateModsObj, maybeArrayOfDict);
           mainObjectDict["profiles"] = updatedProfileObjectArray;
           obj = Caml_option.some(mainObjectDict);
         } else {
@@ -1088,7 +1085,7 @@ function stringifyOptionJson(maybejson) {
   }
 }
 
-console.log(stringifyOptionJson(getMods(readjson)));
+console.log(stringifyOptionJson(getAndUpdateMods(readjson)));
 
 var test = makeprimaryvalue(/* PrimarySpeed */9, /* PrimaryLevel */[15], /* Pip5 */4);
 
@@ -1136,22 +1133,16 @@ exports.stringifySecondaryLevel = stringifySecondaryLevel;
 exports.encodeCharMod = encodeCharMod;
 exports.decodeCharMod = decodeCharMod;
 exports.stringifyCharMod = stringifyCharMod;
-exports.encodeMods = encodeMods;
-exports.decodeMods = decodeMods;
-exports.testJson = testJson;
 exports.readjson = readjson;
-exports.testPrim = testPrim;
-exports.testValue = testValue;
-exports.jsonResultToString = jsonResultToString;
-exports.encPrim = encPrim;
-exports.decPrim = decPrim;
-exports.strPrim = strPrim;
-exports.decodedmods = decodedmods;
-exports.encodedmods = encodedmods;
-exports.emptyArray = emptyArray;
 exports.arrayOfOptionsToOptionArray = arrayOfOptionsToOptionArray;
-exports.updateObj = updateObj;
-exports.getMods = getMods;
+exports.updateModsObj = updateModsObj;
+exports.decodeArrayOfObects = decodeArrayOfObects;
+exports.addModListToMap = addModListToMap;
+exports.getModsMapFromProfile = getModsMapFromProfile;
+exports.getMainProfile = getMainProfile;
+exports.getModsFromJson = getModsFromJson;
+exports.updateModsInMainProfile = updateModsInMainProfile;
+exports.getAndUpdateMods = getAndUpdateMods;
 exports.stringifyOptionJson = stringifyOptionJson;
 exports.test = test;
 /* randomuid36 Not a pure module */
